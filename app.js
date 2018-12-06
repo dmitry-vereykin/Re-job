@@ -74,8 +74,9 @@ app.post('/resume', (req, res) => {
                 }
             }
 
-            connection.query('insert ignore into user (user_email, user_name) values (?, ?)',
-                [email, name], (err, rows) => {
+            connection.query('insert into user (user_email, user_name) values (?, ?)' +
+                             'on duplicate key update user_name = ?',
+                [email, name, name], (err, rows) => {
                     if (err) throw err;
                 });
 
