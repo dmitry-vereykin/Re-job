@@ -192,10 +192,12 @@ app.post('/re-match', function (req, res) {
                     if (err) return parallel_done(err);
                     for (var i = 0; i < rows.length; ++i) {
                         //console.log(i, rows[i]);
-                        organization_email.push(rows[i]);
+                        organization_email.push(rows[i].toString());
                     }
+                    console.log("organization_email: ", organization_email);
                     for (var iterator in organization_email) {
-                        connection.query('select job_chunk from entities_job where organization_email=?',
+                        console.log("organization_email_iterator: ", iterator);
+                        connection.query('select job_chunk from entities_job limit 1',
                             [organization_email[iterator]], { useArray: true }, (err, rows) => {
                                 if (err) return parallel_done(err);
                                 job.push(rows.toString());
@@ -216,7 +218,7 @@ app.post('/re-match', function (req, res) {
                 console.log(similar.getBestSubstring("iterator", "iterator"));
             }
         }
-        console.log(result);
+        console.log("result: ", result);
     });
 
     // console.log("resume-outside: ", resume);
