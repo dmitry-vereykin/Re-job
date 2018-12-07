@@ -164,8 +164,8 @@ app.post('/re-match', function (req, res) {
     var result = [];
 
     // Resume
-    async.parallel([
-        function (parallel_done) {
+    async.series([
+        function (callback) {
             connection.query('select user_email from user',
                 null, { useArray: true }, (err, rows) => {
                     if (err) return parallel_done(err);
@@ -181,12 +181,12 @@ app.post('/re-match', function (req, res) {
                                 console.log("resume: ", resume);
                             });
                     }
-                    parallel_done();
+                    callback(null, 'one');
                 });
         },
 
-    // Job
-        function (parallel_done) {
+        // Job
+        function (callback) {
             connection.query('select organization_email from organization',
                 null, { useArray: true }, (err, rows) => {
                     if (err) return parallel_done(err);
@@ -202,35 +202,28 @@ app.post('/re-match', function (req, res) {
                                 console.log("job: ", job);
                             });
                     }
-                    parallel_done();
+                    callback(null, 'two');
                 });
         },
+    ], function (err) {
+        if (err) console.log(err);
+        console.log("resume-outside: ", resume);
+        console.log("job-outside: ", job);
+    });
 
-        function (parallel_done) {
-            console.log("resume-outside: ", resume);
-            console.log("job-outside: ", job);
-
-
-            var test = similar.getBestSubstring("iterator,2425325,4543,53", "iteratar,876842,534,4534");
-            console.log(test.accuracy);
-            //console.log(similar.getBestSubstring("iterator", "iterator"));
-
+            // console.log("resume-outside: ", resume);
+            // console.log("job-outside: ", job);
 
             for (var iterator in resume) {
                 for (var iterator_2 in job) {
-                    //console.log(resume[iterator], job[iterator_2]);
-                    //result.push(similar.getBestSubString(resume[iterator], job[iterator_2]));
+                    console.log(resume[iterator], job[iterator_2]);
+                    result.push(similar.getBestSubString(resume[iterator], job[iterator_2]));
                     console.log(similar.getBestSubstring("iterator", "iterator"));
                 }
             }
 
             console.log(result);
-        },
-    ], function (err) {
-        if (err) console.log(err);
-        connection.end();
-        res.send();
-    });
+            
     res.render('index', {
         // Match algorithm(?)
     });
