@@ -173,6 +173,7 @@ app.post('/re-match', function (req, res) {
                         //console.log(i, rows[i]);
                         organization_email.push(rows[i].toString());
                     }
+                    console.log("organization_email: ", organization_email)
                     callback(null, organization_email);
                 });
         },
@@ -183,9 +184,9 @@ app.post('/re-match', function (req, res) {
                     [organization_email[iterator]], { useArray: true }, (err, rows) => {
                         if (err) throw err;
                         job.push(rows.toString());
-                        //console.log("job: ", job);
                     });
             }
+            console.log("job: ", job);
             callback(null, job);
         },
 
@@ -195,10 +196,10 @@ app.post('/re-match', function (req, res) {
                 null, { useArray: true }, (err, rows) => {
                     if (err) throw err;
                     for (var i = 0; i < rows.length; ++i) {
-                        //console.log(i, rows[i]);
                         user_emails.push(rows[i]);
                     }
                 });
+            console.log("user_emails: ", user_emails);    
             callback(null, user_emails);
         },
         function (callback) {
@@ -210,6 +211,7 @@ app.post('/re-match', function (req, res) {
                         // console.log("resume: ", resume);
                     });
             }
+            console.log("resume: ", resume);
             callback(null, resume);
         }
 
