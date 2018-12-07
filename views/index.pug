@@ -49,9 +49,18 @@ div(class="page")
                     button(class="btn" type="submit") Re-Match
 
 
-div(class="resume-job-board")
-    h2 Resumes-Jobs Board
-    ul(class="resume-job-list")
-        each val in [1, 2, 3, 4, 5]
-            li= "Test " + val
-            br
+    div(class="resume-job-board")
+    //- h2 Resumes-Jobs Board
+    //- ul(class="resume-job-list")
+    //-     each val in [1, 2, 3, 4, 5]
+    //-         li= "Test " + val
+    //-         br
+    body
+        h1= 'Result List'
+    table
+        for result in listResult
+            tr
+                td= result.user
+                td= result.organization
+                td= result.job
+                td= result.rate
