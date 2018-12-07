@@ -163,54 +163,60 @@ app.post('/re-match', function (req, res) {
     var job = [];
     var result = [];
 
-    // Resume
     async.series([
         function (callback) {
-            connection.query('select user_email from user',
-                null, { useArray: true }, (err, rows) => {
-                    if (err) return parallel_done(err);
-                    for (var i = 0; i < rows.length; ++i) {
-                        //console.log(i, rows[i]);
-                        user_emails.push(rows[i]);
-                    }
-                    for (var iterator in user_emails) {
-                        connection.query('select resume_chunk from entities_resume where user_email=?',
-                            [user_emails[iterator]], { useArray: true }, (err, rows) => {
-                                if (err) return parallel_done(err);
-                                resume.push(rows.toString());
-                                console.log("resume: ", resume);
-                            });
-                    }
-                    callback(null, 'one');
-                });
-        },
-
-        // Job
-        function (callback) {
+            // Job
             connection.query('select organization_email from organization',
                 null, { useArray: true }, (err, rows) => {
-                    if (err) return parallel_done(err);
+                    if (err) throw err;
                     for (var i = 0; i < rows.length; ++i) {
                         //console.log(i, rows[i]);
                         organization_email.push(rows[i].toString());
                     }
-                    console.log("organization_email: ", organization_email);
-                    for (var iterator in organization_email) {
-                        console.log("organization_email_iterator: ", iterator);
-                        connection.query('select job_chunk from entities_job limit 1',
-                            [organization_email[iterator]], { useArray: true }, (err, rows) => {
-                                if (err) return parallel_done(err);
-                                job.push(rows.toString());
-                                console.log("job: ", job);
-                            });
-                    }
-                    callback(null, 'two');
+                    callback(null, organization_email);
                 });
         },
-    ], function (err) {
+        function (callback) {
+            for (var iterator in organization_email) {
+                console.log("organization_email_iterator: ", iterator);
+                connection.query('select ej.job_chunk from entities_job ej join organization o on o.organization_email=ej.organization_email;',
+                    [organization_email[iterator]], { useArray: true }, (err, rows) => {
+                        if (err) throw err;
+                        job.push(rows.toString());
+                        //console.log("job: ", job);
+                    });
+            }
+            callback(null, job);
+        },
+
+        function (callback) {
+            // Resume
+            connection.query('select user_email from user',
+                null, { useArray: true }, (err, rows) => {
+                    if (err) throw err;
+                    for (var i = 0; i < rows.length; ++i) {
+                        //console.log(i, rows[i]);
+                        user_emails.push(rows[i]);
+                    }
+                });
+            callback(null, user_emails);
+        },
+        function (callback) {
+            for (var iterator in user_emails) {
+                connection.query('select resume_chunk from entities_resume where user_email=?',
+                    [user_emails[iterator]], { useArray: true }, (err, rows) => {
+                        if (err) throw err;
+                        resume.push(rows.toString());
+                        // console.log("resume: ", resume);
+                    });
+            }
+            callback(null, resume);
+        }
+
+    ], function (err, results) {
         if (err) console.log(err);
-        console.log("resume-outside: ", resume);
         console.log("job-outside: ", job);
+        console.log("resume-outside: ", resume);
         for (var iterator in resume) {
             for (var iterator_2 in job) {
                 console.log(resume[iterator], job[iterator_2]);
