@@ -209,21 +209,29 @@ app.post('/re-match', function (req, res) {
         if (err) console.log(err);
         console.log("resume-outside: ", resume);
         console.log("job-outside: ", job);
+        for (var iterator in resume) {
+            for (var iterator_2 in job) {
+                console.log(resume[iterator], job[iterator_2]);
+                result.push(similar.getBestSubString(resume[iterator], job[iterator_2]));
+                console.log(similar.getBestSubstring("iterator", "iterator"));
+            }
+        }
+        console.log(result);
     });
 
-            // console.log("resume-outside: ", resume);
-            // console.log("job-outside: ", job);
+    // console.log("resume-outside: ", resume);
+    // console.log("job-outside: ", job);
 
-            for (var iterator in resume) {
-                for (var iterator_2 in job) {
-                    console.log(resume[iterator], job[iterator_2]);
-                    result.push(similar.getBestSubString(resume[iterator], job[iterator_2]));
-                    console.log(similar.getBestSubstring("iterator", "iterator"));
-                }
-            }
+    // for (var iterator in resume) {
+    //     for (var iterator_2 in job) {
+    //         console.log(resume[iterator], job[iterator_2]);
+    //         result.push(similar.getBestSubString(resume[iterator], job[iterator_2]));
+    //         console.log(similar.getBestSubstring("iterator", "iterator"));
+    //     }
+    // }
 
-            console.log(result);
-            
+    // console.log(result);
+
     res.render('index', {
         // Match algorithm(?)
     });
