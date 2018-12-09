@@ -7,6 +7,8 @@ const port = 3000;
 const Client = require('mariasql');
 const parser = require('concepts-parser');
 const fs = require('fs');
+var async = require('async');
+const { SimilarSearch } = require('node-nlp');
 require('dotenv').config();
 
 app.set('view engine', 'pug');
@@ -40,12 +42,12 @@ fs.readFile('./sql/re-job.sql', 'utf8', function (err, data) {
     }
 });
 
-app.get('/', function (req, res) {
+app.get('/', (req, res) => {
     res.render('index', {
     });
 });
 
-app.post('/resume', function (req, res) {
+app.post('/resume', (req, res) => {
     let name = req.body.reName;
     let email = req.body.reEmail;
     let resumeFile = req.files.resumeFile;
@@ -72,21 +74,22 @@ app.post('/resume', function (req, res) {
                 }
             }
 
-            connection.query('insert into user (user_email, user_name) values (?, ?)',
+            connection.query('insert ignore into user (user_email, user_name) values (?, ?)',
                 [email, name], (err, rows) => {
                     if (err) throw err;
-            });
+                });
+
 
             connection.query('delete from entities_resume where user_email = ?',
                 [email], (err, rows) => {
                     if (err) throw err;
-            });
+                });
 
             for (var iterator in resume) {
                 connection.query('insert into entities_resume (user_email, resume_chunk) values (?, ?)',
                     [email, resume[iterator]], (err, rows) => {
                         if (err) throw err;
-                });
+                    });
             }
         });
 
@@ -97,7 +100,7 @@ app.post('/resume', function (req, res) {
     });
 });
 
-app.post('/job', function (req, res) {
+app.post('/job', (req, res) => {
     let jobName = req.body.jobName;
     let email = req.body.jobEmail;
     let organizationName = req.body.organizationName;
@@ -126,23 +129,23 @@ app.post('/job', function (req, res) {
             connection.query('insert ignore into organization (organization_email, organization_name) values (?, ?)',
                 [email, organizationName], (err, rows) => {
                     if (err) throw err;
-            });
+                });
 
             connection.query('insert ignore into jobs (organization_email, job_name) values (?, ?)',
                 [email, jobName], (err, rows) => {
                     if (err) throw err;
-            });
+                });
 
             connection.query('delete from entities_job where organization_email = ? and job_name = ?',
                 [email, jobName], (err, rows) => {
                     if (err) throw err;
-            });
+                });
 
             for (var iterator in job) {
                 connection.query('insert into entities_job (organization_email, job_name, job_chunk) values (?, ?, ?)',
                     [email, jobName, job[iterator]], (err, rows) => {
                         if (err) throw err;
-                });
+                    });
             }
         });
     }
@@ -153,9 +156,121 @@ app.post('/job', function (req, res) {
 });
 
 app.post('/re-match', function (req, res) {
-    res.render('index', {
-        // Match algorithm(?)
+    let user_email = [];
+    let organization_email = [];
+    const similar = new SimilarSearch();
+    var resume = [];
+    var job = [];
+    var jobName = [];
+    var result = [];
+
+    async.series([
+        (callBack) => {
+            async.series([
+                (callback) => {
+                    connection.query('select user_email from user',
+                        null, { useArray: true }, (err, rows) => {
+                            if (err) throw err;
+                            var str = rows.toString();
+                            user_email = str.split(',');
+                            // console.log("user_email:", user_email);
+                            callback(null, 1);
+                        });
+                },
+            ], (err, result) => {
+                var i = 0;
+                user_email.forEach((data) => {
+                    connection.query('select resume_chunk from entities_resume where user_email=?',
+                        [data], { useArray: true }, (err, rows) => {
+                            if (err) throw err;
+                            resume.push(rows.toString());
+                            i++;
+                            // console.log("resume: ", resume);
+                            // console.log('i:' + i + ' user_email.length:' + user_email.length);
+                            if (i === user_email.length) {
+                                callBack(null, 1)
+                            }
+                        });
+                });
+            });
+        },
+        (callBack) => {
+            async.series([
+                (callback) => {
+                    connection.query('select organization_email from organization',
+                        null, { useArray: true }, (err, rows) => {
+                            if (err) throw err;
+                            var str = rows.toString();
+                            organization_email = str.split(',');
+                            // console.log("organization_email:", organization_email);
+                            callback(null, 1);
+                        });
+                },
+                (callback) => {
+                    connection.query('select job_name from jobs',
+                        null, { useArray: true }, (err, rows) => {
+                            if (err) throw err;
+                            var str = rows.toString();
+                            jobName = str.split(',');
+                            // console.log("job name:", jobName);
+                            callback(null, 2);
+                        });
+                },
+            ], (err, result) => {
+                var i = 0;
+                organization_email.forEach((data) => {
+                    connection.query('select job_chunk from entities_job where organization_email=?',
+                        [data], { useArray: true }, (err, rows) => {
+                            if (err) throw err;
+                            job.push(rows.toString());
+                            i++;
+                            // console.log("job: ", job);
+                            // console.log('i:' + i + ' organization_email.length:' + organization_email.length);
+                            if (i === organization_email.length) {
+                                callBack(null, 2)
+                            }
+                        });
+                });
+            });
+        },
+    ], (err, results) => {
+        // console.log("RESUME: ", resume);
+        // console.log("JOB: ", job);
+        for (var iterator in resume) {
+            for (var iterator_2 in job) {
+                //console.log(resume[iterator], job[iterator_2]);
+                var rate = similar.getBestSubstring(resume[iterator], job[iterator_2]);
+                result.push(rate.accuracy);
+                // console.log("result: " + result);
+                connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?,?,?,?)',
+                [user_email[iterator], organization_email[iterator_2], jobName[iterator_2], rate.accuracy], (err, rows) => {
+                    if (err) throw err;
+                });
+            }
+        }
     });
+
+    var listResult = [];
+    connection.query('select * from `match` order by user_email desc', (err, rows) => {
+        if (err) {
+            console.log(err);
+        } else {
+            for (var i = 0; i < 1; i++) {
+                var match = {
+                    user: rows[i].user_email,
+                    organization: rows[i].organization_email,
+                    job: rows[i].job_name,
+                    rate: rows[i].match_rate
+                }
+                listResult.push(match);
+            }
+
+            console.log(listResult);
+            res.render('index', {
+                listResult: listResult
+            });
+        }
+    })
 });
 
 connection.end();
