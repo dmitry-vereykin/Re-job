@@ -230,6 +230,7 @@ app.post('/re-match', function (req, res) {
             console.log(jobs);
 
             // SOMETHING IS BROKEN WITHIN THIS LOOP
+            // SIMILAR GET BEST?
             for (var i in resumes) {
                 for (var j in jobs) {
                     var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
