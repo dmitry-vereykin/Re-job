@@ -204,7 +204,7 @@ app.post('/re-match', function (req, res) {
                 resumes.push({ user_email: email, resume: rawResumes[i] })
             });
 
-            console.log(resumes);
+            // console.log(resumes);
 
             return query('select organization_email, job_name from jobs', null, null);
         })
@@ -226,11 +226,12 @@ app.post('/re-match', function (req, res) {
                 jobs.push({ organization_email: jobPair.organization_email, job_name: jobPair.job_name, job: rawJobs[i] })
             });
 
+            return query('delete from `match`', null, null);;
+        }).then(() => {
             // OUTPUT
-            console.log(jobs);
+            // console.log(jobs);
 
-            // SOMETHING IS BROKEN WITHIN THIS LOOP
-            // SIMILAR GET BEST?
+            // SOMETHING MIGHT BE BROKEN WITHIN THIS LOOP
             for (var i in resumes) {
                 for (var j in jobs) {
                     // var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
@@ -246,8 +247,6 @@ app.post('/re-match', function (req, res) {
             // NO OUTPUT
             console.log(results);
 
-            return null;
-        }).then(() => {
             res.render('index', {
 
             });
