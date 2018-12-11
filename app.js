@@ -228,14 +228,10 @@ app.post('/re-match', function (req, res) {
 
             return query('delete from `match`', null, null);;
         }).then(() => {
-            // OUTPUT
-            // console.log(jobs);
 
             // SOMETHING MIGHT BE BROKEN WITHIN THIS LOOP
             for (var i in resumes) {
                 for (var j in jobs) {
-                    // console.log(i," resumes: ",resumes[i]);
-                    // console.log(j," jobs: ",jobs[j]);
                     var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
                     connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
                         [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, rate.accuracy], (err, rows) => {
@@ -244,22 +240,11 @@ app.post('/re-match', function (req, res) {
                 }
             }
 
-            return query('select u.user_name, o.organization_name, m.job_name, m.match_rate from `match` m join user u on m.user_email=u.user_email join organization o on m.organization_email=o.organization_email order by m.match_rate desc limit 3');
+            return query('select u.user_name, o.organization_name, m.job_name, m.match_rate from `match` m join user u on m.user_email=u.user_email join organization o on m.organization_email=o.organization_email order by m.match_rate desc');
         }).then(rows => {
             // console.log("select from `match`: ",rows);
-            var counter = 0;
-            if (resumes.length * jobs.length === 0) {
-                counter = 0;
-            }
-            else if (resumes.length*jobs.length < 2) {
-                counter = 1;
-            }
-            else if (resumes.length * jobs.length < 3) {
-                counter = 2;
-            }
-            else counter = 3;
 
-            for (var i = 0; i < counter; i++) {
+            for (var i = 0; i < rows.length; i++) {
                 var match = {
                     user: rows[i].user_name,
                     organization: rows[i].organization_name,
