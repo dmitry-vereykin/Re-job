@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS `match` (
   `organization_email` varchar(100) DEFAULT NULL,
   `job_name` varchar(100) DEFAULT NULL,
   `match_rate` double DEFAULT NULL,
+  UNIQUE KEY `match_un` (`user_email`, `job_name`),
   KEY `match_user_fk` (`user_email`),
   KEY `match_organization_fk` (`organization_email`),
   CONSTRAINT `match_organization_fk` FOREIGN KEY (`organization_email`) REFERENCES `organization` (`organization_email`),
