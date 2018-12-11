@@ -233,20 +233,20 @@ app.post('/re-match', function (req, res) {
             // SIMILAR GET BEST?
             for (var i in resumes) {
                 for (var j in jobs) {
-                    var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
-                    results.push({ user_email: resumes[i].user_email, organization_email: jobs[j].organization_email, job_name: jobs[j].job_name, rate: rate.accuracy });
+                    // var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
+                    results.push({ user_email: resumes[i].user_email, organization_email: jobs[j].organization_email, job_name: jobs[j].job_name, rate: 0.5 });
 
-                    // connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
-                    //     [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, rate.accuracy], (err, rows) => {
-                    //         if (err) throw err;
-                    //     });
+                    connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
+                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, 0.5], (err, rows) => {
+                            if (err) throw err;
+                        });
                 }
             }
 
             // NO OUTPUT
             console.log(results);
 
-            return close();
+            return null;
         }).then(() => {
             res.render('index', {
 
