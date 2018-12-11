@@ -184,6 +184,7 @@ app.post('/re-match', function (req, res) {
     var rawJobs = [];
     var jobs = [];
     var result = [];
+    var m_rate = [];
 
     query('use `re-job_db`', null)
         .then(() => {
@@ -227,16 +228,21 @@ app.post('/re-match', function (req, res) {
             });
 
             return query('delete from `match`', null, null);;
-        }).then(() => {
 
-            // SOMETHING MIGHT BE BROKEN WITHIN THIS LOOP
+        }).then(() => {
             for (var i in resumes) {
                 for (var j in jobs) {
                     var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
-                    connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
-                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, rate.accuracy], (err, rows) => {
-                            if (err) throw err;
-                        });
+                    m_rate.push(rate.accuracy);
+                }
+            }
+        }).then(() => {
+            var index = 0;
+            for (var i in resumes) {
+                for (var j in jobs) {
+                    query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
+                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, m_rate[index]]);
+                    index++;
                 }
             }
 
@@ -244,7 +250,7 @@ app.post('/re-match', function (req, res) {
         }).then(rows => {
             // console.log("select from `match`: ",rows);
 
-            for (var i = 0; i < rows.length; i++) {
+            for (var i = 0; i < rows.length && i < 3; i++) {
                 var match = {
                     user: rows[i].user_name,
                     organization: rows[i].organization_name,
