@@ -51,8 +51,8 @@ div(class="page")
 
     div(class="resume-job-board")
         h2 Resumes-Jobs Board
-        if listResult
+        if result
             ul(class="resume-job-list")
-                    each match in listResult
+                    each match in result
                         li=match.user + " " + match.organization + " " + match.job + " " + match.rate 
                         br

@@ -183,7 +183,7 @@ app.post('/re-match', function (req, res) {
     var jobNames = [];
     var rawJobs = [];
     var jobs = [];
-    var results = [];
+    var result = [];
 
     query('use `re-job_db`', null)
         .then(() => {
@@ -234,23 +234,46 @@ app.post('/re-match', function (req, res) {
             // SOMETHING MIGHT BE BROKEN WITHIN THIS LOOP
             for (var i in resumes) {
                 for (var j in jobs) {
-                    // var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
-                    results.push({ user_email: resumes[i].user_email, organization_email: jobs[j].organization_email, job_name: jobs[j].job_name, rate: 0.5 });
-
+                    // console.log(i," resumes: ",resumes[i]);
+                    // console.log(j," jobs: ",jobs[j]);
+                    var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
                     connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
-                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, 0.5], (err, rows) => {
+                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, rate.accuracy], (err, rows) => {
                             if (err) throw err;
                         });
                 }
             }
 
-            // NO OUTPUT
-            console.log(results);
+            return query('select u.user_name, o.organization_name, m.job_name, m.match_rate from `match` m join user u on m.user_email=u.user_email join organization o on m.organization_email=o.organization_email order by m.match_rate desc limit 3');
+        }).then(rows => {
+            // console.log("select from `match`: ",rows);
+            var counter = 0;
+            if (resumes.length * jobs.length === 0) {
+                counter = 0;
+            }
+            else if (resumes.length*jobs.length < 2) {
+                counter = 1;
+            }
+            else if (resumes.length * jobs.length < 3) {
+                counter = 2;
+            }
+            else counter = 3;
+
+            for (var i = 0; i < counter; i++) {
+                var match = {
+                    user: rows[i].user_name,
+                    organization: rows[i].organization_name,
+                    job: rows[i].job_name,
+                    rate: rows[i].match_rate
+                }
+                result.push(match);
+            }
+            console.log(result);
 
             res.render('index', {
-
+                result: result
             });
-        });
+        })
 });
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
