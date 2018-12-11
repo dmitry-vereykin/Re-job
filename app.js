@@ -251,7 +251,7 @@ app.post('/re-match', function (req, res) {
                                 if (err) throw err;
                             });
                     }
-                    if (i === (resume.length * job.length)-1){
+                    if (i === (resume.length * job.length) - 1) {
                         CALLBACK(null, 3)
                     }
                 }
@@ -259,13 +259,24 @@ app.post('/re-match', function (req, res) {
         }
 
     ], (err, results) => {
-        if (err) { console.log(err);}
+        if (err) { console.log(err); }
         var listResult = [];
-        connection.query('select * from `match` order by user_email desc', (err, rows) => {
+        var counter = 0;
+        connection.query('select * from `match` order by match_rate desc', (err, rows) => {
             if (err) {
                 console.log(err);
             } else {
-                for (var i = 0; i < 1; i++) {
+                if (resume.length * job.length === 0) {
+                    counter = 0;
+                }
+                else if (resume.length*job.length < 2) {
+                    counter = 1;
+                }
+                else if (resume.length * job.length < 3) {
+                    counter = 2;
+                }
+                else counter = 3;
+                for (var i = 0; i < counter; i++) {
                     var match = {
                         user: rows[i].user_email,
                         organization: rows[i].organization_email,
