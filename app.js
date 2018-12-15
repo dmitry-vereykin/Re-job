@@ -231,31 +231,18 @@ app.post('/re-match', function (req, res) {
             return query('delete from `match`', null, null);;
 
         }).then(() => {
-            console.log("BEFORE LOOP");
             for (var i in resumes) {
                 for (var j in jobs) {
-                    console.time('levenshtein');
                     var rate = levenshtein(resumes[i].resume, jobs[j].job);
-                    console.timeEnd('levenshtein');
-                    console.log("TEST", i, j);
-                    m_rate.push(rate);
-                }
-            }
-            console.log("AFTER LOOP");
-            return m_rate;
-        }).then(() => {
-            var index = 0;
-            for (var i in resumes) {
-                for (var j in jobs) {
-                    query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
-                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, m_rate[index]]);
-                    index++;
-                }
-            }
+                    rate = (1 - rate/resumes[i].resume.length) * 100;
 
+                    query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
+                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, rate.toFixed(2)]);
+                }
+            }
+        
             return query('select u.user_name, o.organization_name, m.job_name, m.match_rate from `match` m join user u on m.user_email=u.user_email join organization o on m.organization_email=o.organization_email order by m.match_rate desc');
         }).then(rows => {
-            // console.log("select from `match`: ",rows);
 
             for (var i = 0; i < rows.length && i < 3; i++) {
                 var match = {
@@ -266,7 +253,6 @@ app.post('/re-match', function (req, res) {
                 }
                 result.push(match);
             }
-            console.log(result);
 
             res.render('index', {
                 result: result
