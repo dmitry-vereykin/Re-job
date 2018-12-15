@@ -49,10 +49,10 @@ div(class="page")
                     button(class="btn" type="submit") Re-Match
 
 
-    div(class="resume-job-board")
-        h2 Resumes-Jobs Board
-        if listResult
-            ul(class="resume-job-list")
-                    each match in listResult
-                        li=match.user + " " + match.organization + " " + match.job + " " + match.rate 
-                        br
+div(class="resume-job-board")
+    h2 Resumes-Jobs Board
+    if result
+        ul(class="resume-job-list")
+                each match in result
+                    li=match.user + " matches \"" + match.job + "\" from " + match.organization + " with a match rate of " + match.rate + "%"
+                    br

@@ -8,7 +8,8 @@ const Client = require('mariasql');
 const parser = require('concepts-parser');
 const fs = require('fs');
 var async = require('async');
-const { SimilarSearch } = require('node-nlp');
+// const { SimilarSearch } = require('node-nlp');
+const levenshtein = require('js-levenshtein');
 require('dotenv').config();
 
 app.set('view engine', 'pug');
@@ -74,9 +75,8 @@ app.post('/resume', (req, res) => {
                 }
             }
 
-            connection.query('insert into user (user_email, user_name) values (?, ?)' +
-                             'on duplicate key update user_name = ?',
-                [email, name, name], (err, rows) => {
+            connection.query('insert ignore into user (user_email, user_name) values (?, ?)',
+                [email, name], (err, rows) => {
                     if (err) throw err;
                 });
 
@@ -156,146 +156,108 @@ app.post('/job', (req, res) => {
     });
 });
 
-app.post('/re-match', function (req, res) {
-    let user_email = [];
-    let organization_email = [];
-    const similar = new SimilarSearch();
-    var resume = [];
-    var job = [];
-    var jobName = [];
-    var result = [];
-
-    async.series([
-        (CALLBACK) => {
-            async.series([
-                (callBack) => {
-                    async.series([
-                        (callback) => {
-                            connection.query('select user_email from user',
-                                null, { useArray: true }, (err, rows) => {
-                                    if (err) throw err;
-                                    var str = rows.toString();
-                                    user_email = str.split(',');
-                                    // console.log("user_email:", user_email);
-                                    callback(null, 1);
-                                });
-                        },
-                    ], (err, result) => {
-                        var i = 0;
-                        user_email.forEach((data) => {
-                            connection.query('select resume_chunk from entities_resume where user_email=?',
-                                [data], { useArray: true }, (err, rows) => {
-                                    if (err) throw err;
-                                    resume.push(rows.toString());
-                                    i++;
-                                    // console.log("resume: ", resume);
-                                    // console.log('i:' + i + ' user_email.length:' + user_email.length);
-                                    if (i === user_email.length) {
-                                        callBack(null, 1)
-                                    }
-                                });
-                        });
-                    });
-                },
-                (callBack) => {
-                    async.series([
-                        (callback) => {
-                            connection.query('select organization_email from organization',
-                                null, { useArray: true }, (err, rows) => {
-                                    if (err) throw err;
-                                    var str = rows.toString();
-                                    organization_email = str.split(',');
-                                    // console.log("organization_email:", organization_email);
-                                    callback(null, 1);
-                                });
-                        },
-                        (callback) => {
-                            connection.query('select job_name from jobs',
-                                null, { useArray: true }, (err, rows) => {
-                                    if (err) throw err;
-                                    var str = rows.toString();
-                                    jobName = str.split(',');
-                                    // console.log("job name:", jobName);
-                                    callback(null, 2);
-                                });
-                        },
-                    ], (err, result) => {
-                        var i = 0;
-                        organization_email.forEach((data) => {
-                            connection.query('select job_chunk from entities_job where organization_email=?',
-                                [data], { useArray: true }, (err, rows) => {
-                                    if (err) throw err;
-                                    job.push(rows.toString());
-                                    i++;
-                                    // console.log("job: ", job);
-                                    // console.log('i:' + i + ' organization_email.length:' + organization_email.length);
-                                    if (i === organization_email.length) {
-                                        callBack(null, 2)
-                                    }
-                                });
-                        });
-                    });
-                },
-            ], (err, results) => {
-                // console.log("RESUME: ", resume);
-                // console.log("JOB: ", job);
-                var i = 0;
-                for (var iterator in resume) {
-                    for (var iterator_2 in job) {
-                        //console.log(resume[iterator], job[iterator_2]);
-                        var rate = similar.getBestSubstring(resume[iterator], job[iterator_2]);
-                        result.push(rate.accuracy);
-                        i++;
-                        // console.log("result: " + result);
-                        connection.query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?,?,?,?)',
-                            [user_email[iterator], organization_email[iterator_2], jobName[iterator_2], rate.accuracy], (err, rows) => {
-                                if (err) throw err;
-                            });
-                    }
-                    if (i === (resume.length * job.length) - 1) {
-                        CALLBACK(null, 3)
-                    }
-                }
-            });
-        }
-
-    ], (err, results) => {
-        if (err) { console.log(err); }
-        var listResult = [];
-        var counter = 0;
-        connection.query('select * from `match` order by match_rate desc', (err, rows) => {
-            if (err) {
-                console.log(err);
-            } else {
-                if (resume.length * job.length === 0) {
-                    counter = 0;
-                }
-                else if (resume.length*job.length < 2) {
-                    counter = 1;
-                }
-                else if (resume.length * job.length < 3) {
-                    counter = 2;
-                }
-                else counter = 3;
-                for (var i = 0; i < counter; i++) {
-                    var match = {
-                        user: rows[i].user_email,
-                        organization: rows[i].organization_email,
-                        job: rows[i].job_name,
-                        rate: rows[i].match_rate
-                    }
-                    listResult.push(match);
-                }
-
-                console.log(listResult);
-                res.render('index', {
-                    listResult: listResult
-                });
-            }
-        })
+function query(sql, args, options) {
+    return new Promise((resolve, reject) => {
+        connection.query(sql, args, options, (err, rows) => {
+            if (err)
+                return reject(err);
+            resolve(rows);
+        });
     });
-});
+}
 
-connection.end();
+function close() {
+    return new Promise((resolve, reject) => {
+        connection.end(err => {
+            if (err)
+                return reject(err);
+            resolve();
+        });
+    });
+}
+
+app.post('/re-match', function (req, res) {
+    var userEmails = [];
+    // const similar = new SimilarSearch();
+    var rawResumes = [];
+    var resumes = [];
+    var jobNames = [];
+    var rawJobs = [];
+    var jobs = [];
+    var result = [];
+    var m_rate = [];
+
+    query('use `re-job_db`', null)
+        .then(() => {
+            return query('select user_email from user', null, { useArray: true });
+        })
+        .then(rows => {
+            userEmails = rows.toString().split(',');
+            return Promise.all(userEmails.map((email) => {
+                return query('select resume_chunk from entities_resume where user_email = ?', [email], { useArray: true });
+            }));
+        })
+        .then(rows => {
+            rows.forEach(resumeInChunks => {
+                rawResumes.push(resumeInChunks.toString().replace(/,/g, ' '));
+            });
+
+            userEmails.forEach((email, i) => {
+                resumes.push({ user_email: email, resume: rawResumes[i] })
+            });
+
+            // console.log(resumes);
+
+            return query('select organization_email, job_name from jobs', null, null);
+        })
+        .then(rows => {
+            rows.forEach(jobOrganizationPair => {
+                jobNames.push(jobOrganizationPair);
+            });
+
+            return Promise.all(jobNames.map((jobPair) => {
+                return query('select job_chunk from entities_job where organization_email = ? and job_name = ?', [jobPair.organization_email, jobPair.job_name], { useArray: true });
+            }));
+        })
+        .then(rows => {
+            rows.forEach(jobInChunks => {
+                rawJobs.push(jobInChunks.toString().replace(/,/g, ' '));
+            });
+
+            jobNames.forEach((jobPair, i) => {
+                jobs.push({ organization_email: jobPair.organization_email, job_name: jobPair.job_name, job: rawJobs[i] })
+            });
+
+            return query('delete from `match`', null, null);;
+
+        }).then(() => {
+            for (var i in resumes) {
+                for (var j in jobs) {
+                    var rate = levenshtein(resumes[i].resume, jobs[j].job);
+                    rate = (1 - rate/resumes[i].resume.length) * 100;
+
+                    query('insert ignore into `match` (user_email, organization_email, job_name, match_rate) values (?, ?, ?, ?)',
+                        [resumes[i].user_email, jobs[j].organization_email, jobs[j].job_name, rate.toFixed(2)]);
+                }
+            }
+        
+            return query('select u.user_name, o.organization_name, m.job_name, m.match_rate from `match` m join user u on m.user_email=u.user_email join organization o on m.organization_email=o.organization_email order by m.match_rate desc');
+        }).then(rows => {
+
+            for (var i = 0; i < rows.length && i < 3; i++) {
+                var match = {
+                    user: rows[i].user_name,
+                    organization: rows[i].organization_name,
+                    job: rows[i].job_name,
+                    rate: rows[i].match_rate
+                }
+                result.push(match);
+            }
+
+            res.render('index', {
+                result: result
+            });
+        })
+});
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
