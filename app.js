@@ -8,7 +8,8 @@ const Client = require('mariasql');
 const parser = require('concepts-parser');
 const fs = require('fs');
 var async = require('async');
-const { SimilarSearch } = require('node-nlp');
+// const { SimilarSearch } = require('node-nlp');
+const levenshtein = require('js-levenshtein');
 require('dotenv').config();
 
 app.set('view engine', 'pug');
@@ -177,7 +178,7 @@ function close() {
 
 app.post('/re-match', function (req, res) {
     var userEmails = [];
-    const similar = new SimilarSearch();
+    // const similar = new SimilarSearch();
     var rawResumes = [];
     var resumes = [];
     var jobNames = [];
@@ -230,12 +231,18 @@ app.post('/re-match', function (req, res) {
             return query('delete from `match`', null, null);;
 
         }).then(() => {
+            console.log("BEFORE LOOP");
             for (var i in resumes) {
                 for (var j in jobs) {
-                    var rate = similar.getBestSubstring(resumes[i].resume, jobs[j].job);
-                    m_rate.push(rate.accuracy);
+                    console.time('levenshtein');
+                    var rate = levenshtein(resumes[i].resume, jobs[j].job);
+                    console.timeEnd('levenshtein');
+                    console.log("TEST", i, j);
+                    m_rate.push(rate);
                 }
             }
+            console.log("AFTER LOOP");
+            return m_rate;
         }).then(() => {
             var index = 0;
             for (var i in resumes) {
